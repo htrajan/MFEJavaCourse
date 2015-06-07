@@ -7,6 +7,8 @@ import edu.berkeley.exchange.security.Security;
 
 public interface OrderRepository extends JpaRepository<Order, Long> {
 	
-	public Order findTopBySecurityAndTypeOrderByPriceDesc(Security security, OrderType type);
-	public Order findTopBySecurityAndTypeOrderByPriceAsc(Security security, OrderType type);
+	public Order findTopBySecurityAndTypeAndExecutedOrderByPriceDesc(Security security, OrderType type, 
+			boolean executed);
+	public Order findTopBySecurityAndTypeAndExecutedOrderByPriceAsc(Security security, OrderType type,
+			boolean executed);
 }

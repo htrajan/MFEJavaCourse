@@ -20,11 +20,6 @@ public class Order
 		SELL
 	}
 	
-	public enum OrderExecution {
-		MARKET,
-		LIMIT
-	}
-	
 	@Id
 	@GeneratedValue(strategy=GenerationType.AUTO)
 	private long id;
@@ -38,9 +33,20 @@ public class Order
 	@Enumerated(EnumType.STRING)
 	private OrderType type;
 	
-	@Enumerated(EnumType.STRING)
-	private OrderExecution execution;
+	private boolean executed;
 	
+	public Order(Security security, Trader trader, double price, int quantity,
+			OrderType type) 
+	{
+		this.security = security;
+		this.trader = trader;
+		this.price = price;
+		this.quantity = quantity;
+		this.type = type;
+		this.executed = false;
+		this.timestamp = new Date(System.currentTimeMillis());
+	}
+
 	private Date timestamp;
 
 	public Security getSecurity() {
@@ -83,19 +89,15 @@ public class Order
 		this.type = type;
 	}
 
-	public OrderExecution getExecution() {
-		return execution;
+	public boolean isExecuted() {
+		return executed;
 	}
 
-	public void setExecution(OrderExecution execution) {
-		this.execution = execution;
+	public void setExecuted(boolean executed) {
+		this.executed = executed;
 	}
 
 	public Date getTimestamp() {
 		return timestamp;
-	}
-
-	public void setTimestamp(Date timestamp) {
-		this.timestamp = timestamp;
 	}
 }
