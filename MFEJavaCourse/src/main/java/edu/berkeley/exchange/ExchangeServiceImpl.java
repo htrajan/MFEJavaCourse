@@ -41,6 +41,18 @@ public class ExchangeServiceImpl implements ExchangeService
 				OrderType.SELL, false);
 	}
 	
+	public Order getLastExecutedBuy(Security security, Trader trader)
+	{
+		return orderRepo.findTopBySecurityAndTraderAndTypeAndExecutedOrderByIdDesc(
+				security, trader, OrderType.BUY, true);
+	}
+	
+	public Order getLastExecutedSell(Security security, Trader trader)
+	{
+		return orderRepo.findTopBySecurityAndTraderAndTypeAndExecutedOrderByIdDesc(
+				security, trader, OrderType.SELL, true);
+	}
+	
 	@Override
 	public void placeOrder(Trader trader, Security security, double price,
 			int quantity, OrderType type)
@@ -75,6 +87,7 @@ public class ExchangeServiceImpl implements ExchangeService
 		else
 		{
 			double totalCost = 0;
+			int quantityPurchased = 0;
 			
 			Order matchingSell = getBestAsk(security);
 			while (matchingSell != null && matchingSell.getPrice() <= price && quantity > 0)
@@ -95,9 +108,14 @@ public class ExchangeServiceImpl implements ExchangeService
 					traderRepo.save(sellTrader);
 					
 					totalCost += saleAmount;
+					quantityPurchased += sellQuantity;
 					
 					matchingSell.setExecuted(true);
 					orderRepo.save(matchingSell);
+					
+					Order buyOrder = new Order(security, trader, sellPrice, sellQuantity, OrderType.BUY);
+					buyOrder.setExecuted(true);
+					orderRepo.save(buyOrder);
 					
 					if (quantity > 0)
 					{
@@ -106,10 +124,6 @@ public class ExchangeServiceImpl implements ExchangeService
 				}
 				else
 				{
-					Order order = new Order(security, trader, price, quantity, OrderType.BUY);
-					order.setExecuted(true);
-					orderRepo.save(order);
-					
 					sellQuantity -= quantity;
 					
 					double saleAmount = sellPrice * quantity;
@@ -118,10 +132,20 @@ public class ExchangeServiceImpl implements ExchangeService
 					traderRepo.save(sellTrader);
 					
 					totalCost += saleAmount;
-					quantity = 0;
+					quantityPurchased += quantity;
 					
 					matchingSell.setQuantity(sellQuantity);
 					orderRepo.save(matchingSell);
+					
+					Order buyOrder = new Order(security, trader, sellPrice, quantity, OrderType.BUY);
+					buyOrder.setExecuted(true);
+					orderRepo.save(buyOrder);
+					
+					Order sellOrder = new Order(security, sellTrader, sellPrice, quantity, OrderType.SELL);
+					sellOrder.setExecuted(true);
+					orderRepo.save(sellOrder);
+					
+					quantity = 0;
 				}
 			}
 			
@@ -132,10 +156,33 @@ public class ExchangeServiceImpl implements ExchangeService
 				traderRepo.save(trader);
 			}
 			
+			if (quantityPurchased > 0)
+			{
+				HoldingKey holdingKey = new HoldingKey(trader.getName(), security.getTicker());
+				Holding holding = holdingRepo.findOne(holdingKey);
+				
+				if (holding == null)
+				{
+					holding = new Holding(trader, security, quantityPurchased);
+				}
+				else
+				{
+					int quantityHeld = holding.getQuantity();
+					holding.setQuantity(quantityHeld + quantityPurchased);
+				}
+				holdingRepo.save(holding);
+			}
+			
 			if (quantity > 0)
 			{
 				Order order = new Order(security, trader, price, quantity, OrderType.BUY);
 				orderRepo.save(order);
+				
+				capitalRequired = price * quantity;
+				double capital = trader.getCapital();
+				
+				trader.setCapital(capital - capitalRequired);
+				traderRepo.save(trader);
 			}
 		}
 	}
@@ -186,7 +233,6 @@ public class ExchangeServiceImpl implements ExchangeService
 				double buyPrice = matchingBuy.getPrice();
 				
 				Trader buyTrader = matchingBuy.getTrader();
-				double buyTraderCapital = buyTrader.getCapital();
 				
 				HoldingKey buyerHoldingKey = new HoldingKey(buyTrader.getName(), security.getTicker());
 				Holding buyerHolding = holdingRepo.findOne(buyerHoldingKey);
@@ -208,13 +254,14 @@ public class ExchangeServiceImpl implements ExchangeService
 					}
 					
 					double saleAmount = buyPrice * buyQuantity;
-					buyTrader.setCapital(buyTraderCapital - saleAmount);
-					traderRepo.save(buyTrader);
-					
 					saleProceeds += saleAmount;
 					
 					matchingBuy.setExecuted(true);
 					orderRepo.save(matchingBuy);
+					
+					Order sellOrder = new Order(security, trader, buyPrice, buyQuantity, OrderType.SELL);
+					sellOrder.setExecuted(true);
+					orderRepo.save(sellOrder);
 					
 					if (quantity > 0)
 					{
@@ -235,21 +282,23 @@ public class ExchangeServiceImpl implements ExchangeService
 						holdingRepo.save(buyerHolding);
 					}
 					
-					Order order = new Order(security, trader, price, quantity, OrderType.SELL);
-					order.setExecuted(true);
-					orderRepo.save(order);
-					
 					buyQuantity -= quantity;
 					
 					double saleAmount = buyPrice * quantity;
-					buyTrader.setCapital(buyTraderCapital - saleAmount);
-					traderRepo.save(buyTrader);
-					
-					saleProceeds += buyPrice * quantity;
-					quantity = 0;
+					saleProceeds += saleAmount;
 					
 					matchingBuy.setQuantity(buyQuantity);
 					orderRepo.save(matchingBuy);
+					
+					Order sellOrder = new Order(security, trader, buyPrice, quantity, OrderType.SELL);
+					sellOrder.setExecuted(true);
+					orderRepo.save(sellOrder);
+					
+					Order buyOrder = new Order(security, buyTrader, buyPrice, quantity, OrderType.BUY);
+					buyOrder.setExecuted(true);
+					orderRepo.save(buyOrder);
+					
+					quantity = 0;
 				}
 			}
 			
