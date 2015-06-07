@@ -29,15 +29,13 @@ public class ExchangeServiceImpl implements ExchangeService
 		this.traderRepo = traderRepo;
 	}
 
-	@Override
-	public Order getBestBid(Security security) 
+	private Order getBestBid(Security security) 
 	{
 		return orderRepo.findTopBySecurityAndTypeAndExecutedOrderByPriceDesc(security, 
 				OrderType.BUY, false);
 	}
 
-	@Override
-	public Order getBestAsk(Security security) 
+	private Order getBestAsk(Security security) 
 	{
 		return orderRepo.findTopBySecurityAndTypeAndExecutedOrderByPriceAsc(security, 
 				OrderType.SELL, false);

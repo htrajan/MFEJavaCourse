@@ -14,6 +14,12 @@ public class Trader
 	
 	private double capital;
 	
+	public Trader(String name, double capital)
+	{
+		this.name = name;
+		this.capital = capital;
+	}
+	
 	@OneToMany
 	private List<Holding> holdings;
 
