@@ -2,11 +2,10 @@ package edu.berkeley.exchange;
 
 import static org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType.H2;
 
-import java.util.Properties;
-
 import javax.sql.DataSource;
 
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabase;
@@ -17,8 +16,9 @@ import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 
 @Configuration
-@EnableJpaRepositories(basePackages="edu.berkeley.exchange")
 @EnableTransactionManagement
+@EnableJpaRepositories(basePackages="edu.berkeley.exchange")
+@ComponentScan(basePackages="edu.berkeley.exchange")
 public class TestConfig 
 {
 	private static EmbeddedDatabase db;
@@ -42,24 +42,21 @@ public class TestConfig
 	}
 	
 	@Bean
-    public LocalContainerEntityManagerFactoryBean entityManagerFactory() {
-        LocalContainerEntityManagerFactoryBean entityManagerFactoryBean = new LocalContainerEntityManagerFactoryBean();
-        entityManagerFactoryBean.setDataSource(dataSource());
-        entityManagerFactoryBean.setJpaVendorAdapter(new HibernateJpaVendorAdapter());
-        entityManagerFactoryBean.setPackagesToScan("edu.berkeley.exchange");
-        entityManagerFactoryBean.setJpaProperties(jpaProperties());
-        return entityManagerFactoryBean;
+    public LocalContainerEntityManagerFactoryBean entityManagerFactory() 
+	{
+		HibernateJpaVendorAdapter vendorAdapter = new HibernateJpaVendorAdapter();
+		vendorAdapter.setGenerateDdl(true);
+
+		LocalContainerEntityManagerFactoryBean factory = new LocalContainerEntityManagerFactoryBean();
+		factory.setJpaVendorAdapter(vendorAdapter);
+		factory.setPackagesToScan("edu.berkeley.exchange");
+		factory.setDataSource(dataSource());
+		factory.afterPropertiesSet();
+
+		return factory;
     }
  
-    private Properties jpaProperties() {
-        Properties properties = new Properties();
-        properties.setProperty("hibernate.hbm2ddl.auto", "create-drop");
-        properties.setProperty("hibernate.dialect", "org.hibernate.dialect.H2Dialect");
-        properties.setProperty("hibernate.show_sql", "true");
-        properties.setProperty("hibernate.format_sql", "true");
-        return properties;
-    }
- 
+
     @Bean
     public JpaTransactionManager transactionManager() {
         JpaTransactionManager transactionManager = new JpaTransactionManager();

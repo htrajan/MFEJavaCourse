@@ -13,9 +13,14 @@ public class Holding
 	
 	private int quantity;
 	
+	protected Holding()
+	{
+		
+	}
+	
 	public Holding(Trader trader, Security security, int quantity)
 	{
-		HoldingKey key = new HoldingKey(trader, security);
+		HoldingKey key = new HoldingKey(trader.getName(), security.getTicker());
 		this.key = key;
 		this.quantity = quantity;
 	}

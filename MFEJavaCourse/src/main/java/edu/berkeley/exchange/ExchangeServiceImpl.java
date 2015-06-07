@@ -29,13 +29,13 @@ public class ExchangeServiceImpl implements ExchangeService
 		this.traderRepo = traderRepo;
 	}
 
-	private Order getBestBid(Security security) 
+	public Order getBestBid(Security security) 
 	{
 		return orderRepo.findTopBySecurityAndTypeAndExecutedOrderByPriceDesc(security, 
 				OrderType.BUY, false);
 	}
 
-	private Order getBestAsk(Security security) 
+	public Order getBestAsk(Security security) 
 	{
 		return orderRepo.findTopBySecurityAndTypeAndExecutedOrderByPriceAsc(security, 
 				OrderType.SELL, false);
@@ -123,19 +123,19 @@ public class ExchangeServiceImpl implements ExchangeService
 					matchingSell.setQuantity(sellQuantity);
 					orderRepo.save(matchingSell);
 				}
-				
-				if (totalCost > 0)
-				{
-					double capital = trader.getCapital();
-					trader.setCapital(capital - totalCost);
-					traderRepo.save(trader);
-				}
-				
-				if (quantity > 0)
-				{
-					Order order = new Order(security, trader, price, quantity, OrderType.BUY);
-					orderRepo.save(order);
-				}
+			}
+			
+			if (totalCost > 0)
+			{
+				double capital = trader.getCapital();
+				trader.setCapital(capital - totalCost);
+				traderRepo.save(trader);
+			}
+			
+			if (quantity > 0)
+			{
+				Order order = new Order(security, trader, price, quantity, OrderType.BUY);
+				orderRepo.save(order);
 			}
 		}
 	}
@@ -143,7 +143,7 @@ public class ExchangeServiceImpl implements ExchangeService
 	private void placeSellOrder(Trader trader, Security security, double price,
 			int quantity) throws OrderExecutionException 
 	{
-		HoldingKey holdingKey = new HoldingKey(trader, security);
+		HoldingKey holdingKey = new HoldingKey(trader.getName(), security.getTicker());
 		Holding holding = holdingRepo.findOne(holdingKey);
 		
 		if (price <= 0 || quantity <= 0)
@@ -188,7 +188,7 @@ public class ExchangeServiceImpl implements ExchangeService
 				Trader buyTrader = matchingBuy.getTrader();
 				double buyTraderCapital = buyTrader.getCapital();
 				
-				HoldingKey buyerHoldingKey = new HoldingKey(buyTrader, security);
+				HoldingKey buyerHoldingKey = new HoldingKey(buyTrader.getName(), security.getTicker());
 				Holding buyerHolding = holdingRepo.findOne(buyerHoldingKey);
 				
 				if (buyQuantity <= quantity)

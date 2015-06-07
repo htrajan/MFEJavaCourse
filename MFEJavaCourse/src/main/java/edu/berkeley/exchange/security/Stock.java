@@ -7,6 +7,11 @@ public class Stock extends Security
 {	
 	private String companyName;
 	
+	protected Stock()
+	{
+		
+	}
+	
 	public Stock(String ticker, String companyName)
 	{
 		this.ticker = ticker;

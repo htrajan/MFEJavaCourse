@@ -1,9 +1,9 @@
 package edu.berkeley.exchange.security;
 
+import javax.persistence.Entity;
 import javax.persistence.Id;
-import javax.persistence.MappedSuperclass;
 
-@MappedSuperclass
+@Entity
 public abstract class Security 
 {
 	@Id

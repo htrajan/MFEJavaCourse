@@ -1,19 +1,17 @@
 package edu.berkeley.exchange;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.testng.Assert.*;
 
-import org.junit.BeforeClass;
-import org.junit.Test;
-import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.ComponentScan;
 import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
-import org.springframework.test.context.support.AnnotationConfigContextLoader;
+import org.springframework.test.context.testng.AbstractTestNGSpringContextTests;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
+import edu.berkeley.exchange.order.Order;
 import edu.berkeley.exchange.order.Order.OrderType;
 import edu.berkeley.exchange.order.OrderRepository;
+import edu.berkeley.exchange.security.Security;
 import edu.berkeley.exchange.security.Stock;
 import edu.berkeley.exchange.security.StockRepository;
 import edu.berkeley.exchange.trader.Holding;
@@ -21,38 +19,44 @@ import edu.berkeley.exchange.trader.HoldingRepository;
 import edu.berkeley.exchange.trader.Trader;
 import edu.berkeley.exchange.trader.TraderRepository;
 
-@RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration(classes=TestConfig.class, loader=AnnotationConfigContextLoader.class)
-@ComponentScan(basePackages="edu.berkeley.exchange")
-public class ExchangeServiceImplTest
+@ContextConfiguration(classes=TestConfig.class)
+public class ExchangeServiceImplTest extends AbstractTestNGSpringContextTests
 {
+	private static final String VALID_ORDER_FAILURE = "Valid order encountered OrderExecutionException.";
+
+	private static final String SELL_EXCEPTION_MESSAGE = "Could not execute SELL order on AAPL for Goldman Sachs "
+			+ "since price or quantity requested <= 0.";
+
+	private static final String BUY_EXCEPTION_MESSAGE = "Could not execute BUY order on AAPL for Goldman Sachs "
+			+ "since price or quantity requested <= 0.";
+
 	@Autowired
-	private static StockRepository stockRepo;
+	private StockRepository stockRepo;
 	
 	@Autowired
-	private static HoldingRepository holdingRepo;
+	private HoldingRepository holdingRepo;
 	
 	@Autowired
-	private static OrderRepository orderRepo;
+	private OrderRepository orderRepo;
 	
 	@Autowired
-	private static TraderRepository traderRepo;
+	private TraderRepository traderRepo;
 	
-	private static ExchangeServiceImpl exchangeService;
+	private ExchangeServiceImpl exchangeService;
 	
 	@BeforeClass
-	public static void setUp()
+	public void setUp()
 	{
 		setUpService();
 		setUpData();
 	}
 	
-	private static void setUpService()
+	private void setUpService()
 	{
 		exchangeService = new ExchangeServiceImpl(orderRepo, holdingRepo, traderRepo);
 	}
 	
-	private static void setUpData()
+	private void setUpData()
 	{
 		Stock aapl = new Stock("AAPL", "Apple Computer");
 		Stock ibm = new Stock("IBM", "International Business Machines");
@@ -83,45 +87,76 @@ public class ExchangeServiceImplTest
 		try
 		{
 			exchangeService.placeOrder(gs, aapl, 0, 100, OrderType.BUY);
-			fail("Failed to throw OrderExecutionException on bad Price.");
+			fail("[BUY] Failed to throw OrderExecutionException on bad Price.");
 		}
 		catch (OrderExecutionException oee)
 		{
-			assertEquals("Could not place BUY order on AAPL for Goldman Sachs "
-					+ "since price or quantity requested <= 0.", oee.getMessage());
+			assertEquals(oee.getMessage(), BUY_EXCEPTION_MESSAGE);
 		}
 		
 		try
 		{
 			exchangeService.placeOrder(gs, aapl, 100, -1, OrderType.BUY);
-			fail("Failed to throw OrderExecutionException on bad Quantity.");
+			fail("[BUY] Failed to throw OrderExecutionException on bad Quantity.");
 		}
 		catch (OrderExecutionException oee)
 		{
-			assertEquals("Could not place BUY order on AAPL for Goldman Sachs "
-					+ "since price or quantity requested <= 0.", oee.getMessage());
+			assertEquals(oee.getMessage(), BUY_EXCEPTION_MESSAGE);
 		}
 		
 		try
 		{
 			exchangeService.placeOrder(gs, aapl, -1, 100, OrderType.SELL);
-			fail("Failed to throw OrderExecutionException on bad Price.");
+			fail("[SELL] Failed to throw OrderExecutionException on bad Price.");
 		}
 		catch (OrderExecutionException oee)
 		{
-			assertEquals("Could not place SELL order on AAPL for Goldman Sachs "
-					+ "since price or quantity requested <= 0.", oee.getMessage());
+			assertEquals(oee.getMessage(), SELL_EXCEPTION_MESSAGE);
 		}
 		
 		try
 		{
 			exchangeService.placeOrder(gs, aapl, 100, 0, OrderType.SELL);
-			fail("Failed to throw OrderExecutionException on bad Quantity.");
+			fail("[SELL] Failed to throw OrderExecutionException on bad Quantity.");
 		}
 		catch (OrderExecutionException oee)
 		{
-			assertEquals("Could not place SELL order on AAPL for Goldman Sachs "
-					+ "since price or quantity requested <= 0.", oee.getMessage());
+			assertEquals(oee.getMessage(), SELL_EXCEPTION_MESSAGE);
 		}
+	}
+	
+	@Test
+	public void newOrderShouldPopulateCorrectly()
+	{
+		Trader gs = traderRepo.findOne("Goldman Sachs");
+		
+		Stock aapl = stockRepo.findOne("AAPL");
+		Stock ibm = stockRepo.findOne("IBM");
+		
+		try
+		{
+			exchangeService.placeOrder(gs, ibm, 100, 100, OrderType.BUY);
+			exchangeService.placeOrder(gs, aapl, 100, 100, OrderType.SELL);
+			
+			Order buyIbm = exchangeService.getBestBid(ibm);
+			verifyOrder(buyIbm, gs, ibm, 100, 100, OrderType.BUY);
+			
+			Order sellAapl = exchangeService.getBestAsk(aapl);
+			verifyOrder(sellAapl, gs, aapl, 100, 100, OrderType.SELL);
+		}
+		catch (OrderExecutionException oee)
+		{
+			fail(VALID_ORDER_FAILURE);
+		}
+	}
+	
+	private void verifyOrder(Order order, Trader trader, Security security, double price, int quantity, OrderType type)
+	{
+		assertNotNull(order);
+		assertEquals(order.getTrader().getName(), trader.getName());
+		assertEquals(order.getSecurity().getTicker(), security.getTicker());
+		assertEquals(order.getPrice(), price);
+		assertEquals(order.getQuantity(), quantity);
+		assertEquals(order.getType(), type);
 	}
 }
