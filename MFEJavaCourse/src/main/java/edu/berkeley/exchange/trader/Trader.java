@@ -1,11 +1,7 @@
 package edu.berkeley.exchange.trader;
 
-import java.util.List;
-
 import javax.persistence.Entity;
-import javax.persistence.FetchType;
 import javax.persistence.Id;
-import javax.persistence.OneToMany;
 
 @Entity
 public class Trader 
@@ -25,9 +21,6 @@ public class Trader
 		this.name = name;
 		this.capital = capital;
 	}
-	
-	@OneToMany(mappedBy="key.traderName", targetEntity=Holding.class, fetch=FetchType.EAGER)
-	private List<Holding> holdings;
 
 	public String getName() {
 		return name;
@@ -43,10 +36,5 @@ public class Trader
 
 	public void setCapital(double capital) {
 		this.capital = capital;
-	}
-	
-	public List<Holding> getHoldings()
-	{
-		return holdings;
 	}
 }
